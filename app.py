@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
 
 # Page configuration
 st.set_page_config(
@@ -63,10 +63,10 @@ h1, h2, h3 {
 # Header
 st.markdown("""
 <h1 style='text-align:center; margin-bottom:0;'>
-    🚲 Bike Sharing Demand Dashboard
+🚲 Bike Sharing Demand Dashboard
 </h1>
 <p style='text-align:center; color:#9ca3af; font-size:0.95rem;'>
-    Explore how time, season and weather shape bike rental behaviour in Washington, D.C.
+Explore how time, season and weather shape bike rental behaviour in Washington, D.C.
 </p>
 <hr style="border-color:#1f2933;">
 """, unsafe_allow_html=True)
@@ -132,10 +132,8 @@ target_col = "registered" if target_choice == "Registered users" else "count"
 
 # Apply filters
 df_filtered = df.copy()
-
 if year_opt != "All":
     df_filtered = df_filtered[df_filtered["year"] == year_opt]
-
 df_filtered = df_filtered[df_filtered["season_name"].isin(season_opt)]
 df_filtered = df_filtered[df_filtered["weather"].isin(weather_opt)]
 df_filtered = df_filtered[(df_filtered["hour"] >= min_hour) & (df_filtered["hour"] <= max_hour)]
@@ -175,22 +173,67 @@ with tab1:
         
         with col1:
             st.subheader("Mean rentals by hour")
-            fig, ax = plt.subplots()
-            sns.lineplot(data=df_filtered, x="hour", y=target_col, estimator=np.mean, ci=95, marker="o", ax=ax, color="#22c55e")
-            ax.set_xlabel("Hour of day")
-            ax.set_ylabel("Mean rentals")
-            ax.grid(alpha=0.25)
-            st.pyplot(fig)
+            # Group data by hour and calculate mean with confidence interval
+            hourly_data = df_filtered.groupby("hour")[target_col].agg(['mean', 'std', 'count']).reset_index()
+            
+            fig1 = go.Figure()
+            fig1.add_trace(go.Scatter(
+                x=hourly_data["hour"],
+                y=hourly_data["mean"],
+                mode='lines+markers',
+                name='Mean rentals',
+                line=dict(color='#22c55e', width=3),
+                marker=dict(size=8),
+                hovertemplate='<b>Hour:</b> %{x}<br><b>Mean rentals:</b> %{y:.1f}<extra></extra>'
+            ))
+            
+            fig1.update_layout(
+                xaxis_title="Hour of day",
+                yaxis_title="Mean rentals",
+                template="plotly_dark",
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#f5f5f5'),
+                hovermode='x unified',
+                height=400
+            )
+            st.plotly_chart(fig1, use_container_width=True)
             st.markdown("<p class='chart-caption'>Typical commuter peaks around morning and evening hours.</p>", unsafe_allow_html=True)
         
         with col2:
             st.subheader("Mean rentals by period of day")
-            fig2, ax2 = plt.subplots()
-            order = ["night", "morning", "afternoon", "evening"]
-            sns.barplot(data=df_filtered, x="day_period", y=target_col, estimator=np.mean, ci=95, order=order, palette="Greens")
-            ax2.set_xlabel("Period of day")
-            ax2.set_ylabel("Mean rentals")
-            st.pyplot(fig2)
+            # Calculate mean by period
+            period_order = ["night", "morning", "afternoon", "evening"]
+            period_data = df_filtered.groupby("day_period")[target_col].mean().reindex(period_order).reset_index()
+            
+            fig2 = px.bar(
+                period_data,
+                x="day_period",
+                y=target_col,
+                color="day_period",
+                color_discrete_map={
+                    "night": "#065f46",
+                    "morning": "#16a34a",
+                    "afternoon": "#22c55e",
+                    "evening": "#4ade80"
+                }
+            )
+            
+            fig2.update_traces(
+                hovertemplate='<b>Period:</b> %{x}<br><b>Mean rentals:</b> %{y:.1f}<extra></extra>'
+            )
+            
+            fig2.update_layout(
+                xaxis_title="Period of day",
+                yaxis_title="Mean rentals",
+                template="plotly_dark",
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#f5f5f5'),
+                showlegend=False,
+                height=400
+            )
+            st.plotly_chart(fig2, use_container_width=True)
             st.markdown("<p class='chart-caption'>Evening and morning windows highlight strong rush-hour usage.</p>", unsafe_allow_html=True)
         
         st.markdown("</div>", unsafe_allow_html=True)
@@ -198,13 +241,34 @@ with tab1:
     with st.container():
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Hourly rentals by day of week")
-        fig3, ax3 = plt.subplots(figsize=(10, 4))
-        sns.lineplot(data=df_filtered, x="hour", y=target_col, hue="day_of_week", estimator=np.mean, ci=None, marker="o", ax=ax3)
-        ax3.set_xlabel("Hour")
-        ax3.set_ylabel("Mean rentals")
-        ax3.legend(bbox_to_anchor=(1.02, 1), loc="upper left")
-        ax3.grid(alpha=0.25)
-        st.pyplot(fig3)
+        
+        # Group by hour and day_of_week
+        day_hour_data = df_filtered.groupby(["hour", "day_of_week"])[target_col].mean().reset_index()
+        
+        fig3 = px.line(
+            day_hour_data,
+            x="hour",
+            y=target_col,
+            color="day_of_week",
+            markers=True,
+            color_discrete_sequence=px.colors.qualitative.Set2
+        )
+        
+        fig3.update_traces(
+            hovertemplate='<b>%{fullData.name}</b><br>Hour: %{x}<br>Mean rentals: %{y:.1f}<extra></extra>'
+        )
+        
+        fig3.update_layout(
+            xaxis_title="Hour",
+            yaxis_title="Mean rentals",
+            template="plotly_dark",
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#f5f5f5'),
+            legend_title="Day of week",
+            height=450
+        )
+        st.plotly_chart(fig3, use_container_width=True)
         st.markdown("<p class='chart-caption'>Compare workdays vs weekend profiles to see commuting effects.</p>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -216,20 +280,67 @@ with tab2:
         
         with col4:
             st.subheader("Mean rentals by season")
-            fig4, ax4 = plt.subplots()
-            sns.barplot(data=df_filtered, x="season_name", y=target_col, estimator=np.mean, ci=95, palette="YlGn", ax=ax4)
-            ax4.set_xlabel("Season")
-            ax4.set_ylabel("Mean rentals")
-            st.pyplot(fig4)
+            season_data = df_filtered.groupby("season_name")[target_col].mean().reset_index()
+            season_data = season_data.sort_values(target_col, ascending=False)
+            
+            fig4 = px.bar(
+                season_data,
+                x="season_name",
+                y=target_col,
+                color="season_name",
+                color_discrete_map={
+                    "spring": "#84cc16",
+                    "summer": "#22c55e",
+                    "fall": "#fb923c",
+                    "winter": "#60a5fa"
+                }
+            )
+            
+            fig4.update_traces(
+                hovertemplate='<b>Season:</b> %{x}<br><b>Mean rentals:</b> %{y:.1f}<extra></extra>'
+            )
+            
+            fig4.update_layout(
+                xaxis_title="Season",
+                yaxis_title="Mean rentals",
+                template="plotly_dark",
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#f5f5f5'),
+                showlegend=False,
+                height=400
+            )
+            st.plotly_chart(fig4, use_container_width=True)
             st.markdown("<p class='chart-caption'>Warm seasons boost usage; winter typically shows a drop.</p>", unsafe_allow_html=True)
         
         with col5:
             st.subheader("Mean rentals by weather")
-            fig5, ax5 = plt.subplots()
-            sns.barplot(data=df_filtered, x="weather", y=target_col, estimator=np.mean, ci=95, palette="GnBu", ax=ax5)
-            ax5.set_xlabel("Weather category")
-            ax5.set_ylabel("Mean rentals")
-            st.pyplot(fig5)
+            weather_data = df_filtered.groupby("weather")[target_col].mean().reset_index()
+            weather_data = weather_data.sort_values(target_col, ascending=False)
+            
+            fig5 = px.bar(
+                weather_data,
+                x="weather",
+                y=target_col,
+                color="weather",
+                color_discrete_sequence=['#22c55e', '#fbbf24', '#f87171', '#dc2626']
+            )
+            
+            fig5.update_traces(
+                hovertemplate='<b>Weather:</b> %{x}<br><b>Mean rentals:</b> %{y:.1f}<extra></extra>'
+            )
+            
+            fig5.update_layout(
+                xaxis_title="Weather category",
+                yaxis_title="Mean rentals",
+                template="plotly_dark",
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#f5f5f5'),
+                showlegend=False,
+                height=400
+            )
+            st.plotly_chart(fig5, use_container_width=True)
             st.markdown("<p class='chart-caption'>Clear days drive more rides; harsh conditions dampen demand.</p>", unsafe_allow_html=True)
         
         st.markdown("</div>", unsafe_allow_html=True)
@@ -244,9 +355,28 @@ with tab3:
         
         if len(num_cols) > 1 and not df_filtered.empty:
             corr = df_filtered[num_cols].corr()
-            fig6, ax6 = plt.subplots(figsize=(8, 5))
-            sns.heatmap(corr, annot=True, cmap="rocket_r", ax=ax6)
-            st.pyplot(fig6)
+            
+            fig6 = go.Figure(data=go.Heatmap(
+                z=corr.values,
+                x=corr.columns,
+                y=corr.index,
+                colorscale='RdBu_r',
+                zmid=0,
+                text=corr.values,
+                texttemplate='%{text:.2f}',
+                textfont={"size": 10},
+                hovertemplate='<b>%{y} vs %{x}</b><br>Correlation: %{z:.3f}<extra></extra>'
+            ))
+            
+            fig6.update_layout(
+                template="plotly_dark",
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#f5f5f5'),
+                height=600,
+                xaxis=dict(side='bottom')
+            )
+            st.plotly_chart(fig6, use_container_width=True)
             st.markdown("<p class='chart-caption'>Check how temperature, humidity and other factors move with demand.</p>", unsafe_allow_html=True)
         else:
             st.info("Not enough numeric data after filtering to compute correlations.")
@@ -257,7 +387,6 @@ with tab3:
 st.markdown("""
 <hr style='margin-top: 3rem; border: none; border-top: 1px solid #333;'>
 <p style='text-align: center; color: #9ca3af; font-size: 0.9rem; padding: 1rem 0;'>
-    Created by <strong style='color: #4ade80;'>Pratik Gotakhinde</strong>
+Created by <strong style='color: #4ade80;'>Pratik Gotakhinde</strong>
 </p>
 """, unsafe_allow_html=True)
-
