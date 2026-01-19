@@ -162,6 +162,35 @@ with st.container():
     
     st.markdown("</div>", unsafe_allow_html=True)
 
+
+# Data Explorer Section
+with st.expander("📊 View & Download Filtered Data"):
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    
+    col_data1, col_data2 = st.columns([3, 1])
+    
+    with col_data1:
+        st.markdown(f"**Showing {len(df_filtered)} records** (after applying filters)")
+    
+    with col_data2:
+        # Convert dataframe to CSV for download
+        csv = df_filtered.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="⬇️ Download CSV",
+            data=csv,
+            file_name='bike_sharing_filtered_data.csv',
+            mime='text/csv',
+        )
+    
+    # Show preview of filtered data
+    st.dataframe(
+        df_filtered[["datetime", "season_name", "weather", "temp", "humidity", "hour", target_col]].head(100),
+        use_container_width=True,
+        height=400
+    )
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
 # Tabs
 tab1, tab2, tab3 = st.tabs(["Time patterns", "Season & Weather", "Correlations"])
 
@@ -390,3 +419,4 @@ st.markdown("""
 Created by <strong style='color: #4ade80;'>Pratik Gotakhinde</strong>
 </p>
 """, unsafe_allow_html=True)
+
