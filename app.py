@@ -245,7 +245,7 @@ with tab3:
         if len(num_cols) > 1 and not df_filtered.empty:
             corr = df_filtered[num_cols].corr()
             fig6, ax6 = plt.subplots(figsize=(8, 5))
-            sns.heatmap(corr, annot=False, cmap="rocket_r", ax=ax6)
+            sns.heatmap(corr, annot=True, cmap="rocket_r", ax=ax6)
             st.pyplot(fig6)
             st.markdown("<p class='chart-caption'>Check how temperature, humidity and other factors move with demand.</p>", unsafe_allow_html=True)
         else:
@@ -260,3 +260,4 @@ st.markdown("""
     Created by <strong style='color: #4ade80;'>Pratik Gotakhinde</strong>
 </p>
 """, unsafe_allow_html=True)
+
